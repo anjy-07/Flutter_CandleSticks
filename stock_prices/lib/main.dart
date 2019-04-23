@@ -42,7 +42,7 @@ class _RectsExampleState extends State<RectsExample> {
   List<TextPainter> gridLineTextPaintersY = [];
   List<int> marker = [];
 
-  Future<String> getPost() async {
+  Future<Null> getPost() async {
     Map<String, dynamic> decoded;
     String url =
         'https://www.alphavantage.co/query?function=TIME_SERIES_WEEKLY&symbol=MSFT&apikey=8C3O6CD2T8D50GO0';
@@ -65,21 +65,15 @@ class _RectsExampleState extends State<RectsExample> {
           i++;
         }
       }
-      if (data.length < 0) {
-        print("IN fun");
-      } else {
+      if (data.length > 0) {
         setState(() {
           if (data.length > 0) print(data.length);
         });
       }
     });
-
-    return "hi";
   }
 
   List<Rect> buildRectangle() {
-    // getPost();
-    
     double _min;
     double _max;
     double _maxVolume;
@@ -188,7 +182,6 @@ class _RectsExampleState extends State<RectsExample> {
   }
 
   Widget showdialogBox(int index) {
-    print("INSIDE FUNCcc");
     print(index);
     return new Container(
         decoration: new BoxDecoration(color: Colors.white),
@@ -210,7 +203,6 @@ class _RectsExampleState extends State<RectsExample> {
   @override
   Widget build(BuildContext context) {
     if (data == null || data.length == 0) {
-      print("hii");
       return MaterialApp(
         home: Scaffold(
           appBar: new AppBar(
@@ -222,7 +214,7 @@ class _RectsExampleState extends State<RectsExample> {
       return MaterialApp(
           home: Scaffold(
         appBar: AppBar(
-          title: const Text('!!!'),
+          title: const Text('CandleStick Chart'),
           backgroundColor: Colors.black,
         ),
         body: Container(
@@ -243,6 +235,7 @@ class _RectsExampleState extends State<RectsExample> {
                     _index = index;
                     selectedName = data[_index].date;
                     print(selectedName);
+                    showdialogBox(_index);
                   });
                   
                   //  showdialogBox(_index);
@@ -288,10 +281,6 @@ class Rects extends StatelessWidget {
           final index = rects.lastIndexWhere((rect) => rect.contains(offset));
           if (index != -1) {
             onSelected(index);
-             Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => SecondRoute()),
-              );
             return;
           }
       },  
@@ -300,26 +289,6 @@ class Rects extends StatelessWidget {
         size: Size(411.42857142857144, 500.0),
         painter: _RectPainter(rects, lowsticks, highsticks, marker,
             gridLineTextPainters, gridLineTextPaintersY, selectedIndex),
-      ),
-    );
-  }
-}
-
-class SecondRoute extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text("Second Route"),
-      ),
-      body: Center(
-        child: RaisedButton(
-          onPressed: () {
-             Navigator.pop(context);
-            // Navigate back to first route when tapped.
-          },
-          child: Text('Go back!'),
-        ),
       ),
     );
   }
@@ -362,7 +331,6 @@ class _RectPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    print(size);
     double width = size.width;
     final double height = size.height * (1 - 0.2); // volumeprop - 0.2
 
