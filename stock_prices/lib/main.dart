@@ -5,7 +5,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 void main() => runApp(RectsExample());
-List<Data> data = [];
+
+
 class RectsExample extends StatefulWidget {
   @override
   _RectsExampleState createState() => _RectsExampleState();
@@ -24,7 +25,9 @@ class Data {
 
 class _RectsExampleState extends State<RectsExample> {
   int _index = -1;
-  
+  int startIndex = 15;
+  int endIndex = 50;
+  List<Data> data = [];
   // List data = [
   //   {"open": 117.5449, "high": 117.5700, "low": 117.3200, "close": 117.4300, "volumeto": 166377, "date" : "2019-03-29"},
   //   {"open": 116.1700, "high": 120.8200, "low": 116.0500, "close": 117.0500, "volumeto": 4000.0, "date" : "2019-03-22"},
@@ -41,6 +44,7 @@ class _RectsExampleState extends State<RectsExample> {
   List<TextPainter> gridLineTextPainters = [];
   List<TextPainter> gridLineTextPaintersY = [];
   List<int> marker = [];
+  List<Widget> widgetsList = [];
 
   Future<Null> getPost() async {
     Map<String, dynamic> decoded;
@@ -48,11 +52,7 @@ class _RectsExampleState extends State<RectsExample> {
         'https://www.alphavantage.co/query?function=TIME_SERIES_WEEKLY&symbol=MSFT&apikey=8C3O6CD2T8D50GO0';
     await http.get('$url').then((response) {
       decoded = json.decode(response.body)['Weekly Time Series'];
-      int i = 0;
       for (var dates in decoded.keys) {
-        if (i > 20) {
-          break;
-        } else {
           var date = decoded[dates];
           var dataObject = new Data(
               double.parse(date['1. open']),
@@ -62,18 +62,16 @@ class _RectsExampleState extends State<RectsExample> {
               double.parse(date['5. volume']),
               dates[8] + dates[9]);
           data.add(dataObject);
-          i++;
-        }
       }
       if (data.length > 0) {
         setState(() {
-          if (data.length > 0) print(data.length);
         });
+       
       }
-    });
+    });  
   }
 
-  List<Rect> buildRectangle() {
+  List<Rect> buildRectangle(data, start, end) {
     double _min;
     double _max;
     double _maxVolume;
@@ -81,20 +79,20 @@ class _RectsExampleState extends State<RectsExample> {
     _max = -double.infinity;
     _maxVolume = -double.infinity;
 
-    for (var i in data) {
-      if (i.high > _max) {
-        _max = i.high.toDouble();
+    for (var i = start; i < end ; i++) {
+      if (data[i].high > _max) {
+        _max = data[i].high.toDouble();
       }
-      if (i.low < _min) {
-        _min = i.low.toDouble();
+      if (data[i].low < _min) {
+        _min = data[i].low.toDouble();
       }
-      if (i.volumeto > _maxVolume) {
-        _maxVolume = i.volumeto.toDouble();
+      if (data[i].volumeto > _maxVolume) {
+        _maxVolume = data[i].volumeto.toDouble();
       }
     }
 
     double gridLineValue;
-    for (int i = 0; i < 7; i++) {
+    for (int i = 0, j=0; i < 7; i++) {
       // Label grid lines
       gridLineValue = _max - (((_max - _min) / (7 - 1)) * i);
       String gridLineText;
@@ -115,15 +113,15 @@ class _RectsExampleState extends State<RectsExample> {
                   fontSize: 10.0,
                   fontWeight: FontWeight.bold)),
           textDirection: TextDirection.ltr));
-      gridLineTextPainters[i].layout();
+      gridLineTextPainters[j].layout();
+      j++;
     }
 
     double height = 500 * (1 - 0.2);
-    double width =
-        411.42857142857144 - gridLineTextPainters[0].text.text.length * 6;
+    double width = 411.42857142857144 - gridLineTextPainters[0].text.text.length * 6;
 
     final double heightNormalizer = height / (_max - _min);
-    final double rectWidth = width / data.length;
+    final double rectWidth = width / (end-start);
 
     double rectLeft;
     double rectTop;
@@ -132,9 +130,9 @@ class _RectsExampleState extends State<RectsExample> {
     double lineWidth = 1;
     rectangles = [];
 
-    for (int i = 0; i < data.length; i++) {
-      rectLeft = (i * rectWidth) + lineWidth / 2;
-      rectRight = ((i + 1) * rectWidth) - lineWidth / 2;
+    for (int i = start, j=0; i < end; i++) {
+      rectLeft = (j * rectWidth) + lineWidth / 2;
+      rectRight = ((j + 1) * rectWidth) - lineWidth / 2;
 
       gridLineTextPaintersY.add(new TextPainter(
           text: new TextSpan(
@@ -145,7 +143,7 @@ class _RectsExampleState extends State<RectsExample> {
                   fontWeight: FontWeight.bold)),
           textDirection: TextDirection.ltr));
 
-      gridLineTextPaintersY[i].layout();
+      gridLineTextPaintersY[j].layout();
 
       if (data[i].open > data[i].close) {
         // Draw candlestick if decrease
@@ -160,11 +158,7 @@ class _RectsExampleState extends State<RectsExample> {
         rectBottom =
             (height - (data[i].open - _min) * heightNormalizer) - lineWidth / 2;
 
-        // print(rectLeft);
-        // print(rectTop);
-        // print(rectWidth);
-        // print(rectBottom-rectTop);
-
+      
         rectangles.add(
             Rect.fromLTWH(rectLeft, rectTop, rectWidth, rectBottom - rectTop));
         marker.add(1);
@@ -177,21 +171,45 @@ class _RectsExampleState extends State<RectsExample> {
           rectLeft + rectWidth / 2 - lineWidth / 2, low));
       highsticks.add(Sticks(
           rectLeft + rectWidth / 2, rectTop, rectLeft + rectWidth / 2, high));
+      j++;
     }
     return rectangles;
   }
 
-  Widget showdialogBox(int index) {
-    print(index);
-    return new Container(
-        decoration: new BoxDecoration(color: Colors.white),
-        height: 300,
-        width: 200,
-        child: Card(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(3.0)),
-          child: new Text("HIIII!!!!!"),
-        ));
+  // Widget showdialogBox(int index) {
+  //   print(index);
+  //   var currentDate = this.data[index].date;
+  //   widgetsList.add(
+  //     Container(
+  //       decoration: new BoxDecoration(color: Colors.white),
+  //       height: 30,
+  //       width: 20,
+  //       child: Card(
+  //         shape:
+  //             RoundedRectangleBorder(borderRadius: BorderRadius.circular(3.0)),
+  //         child: new Text('$currentDate'),
+  //       ),
+  //     ),
+  //   );
+  // }
+
+  void _handleScaleEnd(ScaleUpdateDetails details) {
+    var zoomedPer = 0;
+    print("REEEDUCINGGGGGGG"); 
+    print(endIndex); 
+    print(details.scale);
+    zoomedPer =  endIndex*(details.scale).round();
+    print(zoomedPer);
+
+    if(endIndex >= 7){
+      setState(() {     
+      lowSticks =[];
+      highsticks=[];
+      marker =[];     
+      gridLineTextPainters=[];
+      gridLineTextPaintersY=[];             
+      });
+    }   
   }
 
   @override
@@ -217,35 +235,63 @@ class _RectsExampleState extends State<RectsExample> {
           title: const Text('CandleStick Chart'),
           backgroundColor: Colors.black,
         ),
-        body: Container(
-          decoration: new BoxDecoration(color: Colors.black),
-          child: Center(
-              child: Stack(children: <Widget>[
-            Rects(
-              rects: buildRectangle(),
-              lowsticks: lowSticks,
-              highsticks: highsticks,
-              marker: marker,
-              selectedIndex: _index,
-              gridLineTextPainters: gridLineTextPainters,
-              gridLineTextPaintersY: gridLineTextPaintersY,
-              onSelected: (index) {
-                if (index != -1) {
-                  setState(() {
-                    _index = index;
-                    selectedName = data[_index].date;
-                    print(selectedName);
-                    showdialogBox(_index);
-                  });
-                  
-                  //  showdialogBox(_index);
-                }
-              },
+        body: GestureDetector(
+           onScaleStart: (scaleDetails) {print(scaleDetails);} ,
+           onScaleUpdate:   _handleScaleEnd,
+           child: Container(
+            decoration: new BoxDecoration(color: Colors.black),
+            child: Center(
+              child:  Rects(
+                rects: buildRectangle(this.data, startIndex, endIndex),
+                lowsticks: lowSticks,
+                highsticks: highsticks,
+                marker: marker,
+                selectedIndex: _index,
+                gridLineTextPainters: gridLineTextPainters,
+                gridLineTextPaintersY: gridLineTextPaintersY,
+                onSelected: (index) {
+                  if (index != -1) {
+                    setState(() {
+                      _index = index;
+                      selectedName = data[_index].date;
+                      print(selectedName);            
+                    });
+                  }
+                },
+              ),
             ),
-          ])),
+          ),
         ),
       ));
     }
+  }
+
+  List<Widget> initWidgetsList() {
+    widgetsList = [];
+    print(widgetsList);
+    widgetsList = <Widget>[
+      Rects(
+        rects: buildRectangle(this.data, startIndex, endIndex),
+        lowsticks: lowSticks,
+        highsticks: highsticks,
+        marker: marker,
+        selectedIndex: _index,
+        gridLineTextPainters: gridLineTextPainters,
+        gridLineTextPaintersY: gridLineTextPaintersY,
+        onSelected: (index) {
+          if (index != -1) {
+            setState(() {
+              _index = index;
+              selectedName = data[_index].date;
+              print(selectedName);            
+              //showdialogBox(_index);
+            });
+          }
+        },
+      ),
+    ];
+
+    return widgetsList;
   }
 }
 
@@ -270,21 +316,19 @@ class Rects extends StatelessWidget {
     @required this.onSelected,
     this.selectedIndex = -1,
   }) : super(key: key);
- 
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-        onPanDown: (details) {
-          RenderBox box = context.findRenderObject();
-          final offset = box.globalToLocal(details.globalPosition);
-          final index = rects.lastIndexWhere((rect) => rect.contains(offset));
-          if (index != -1) {
-            onSelected(index);
-            return;
-          }
-      },  
-      
+      onPanDown: (details) {
+        RenderBox box = context.findRenderObject();
+        final offset = box.globalToLocal(details.globalPosition);
+        final index = rects.lastIndexWhere((rect) => rect.contains(offset));
+        if (index != -1) {
+          onSelected(index);
+          return;
+        }
+      },
       child: CustomPaint(
         size: Size(411.42857142857144, 500.0),
         painter: _RectPainter(rects, lowsticks, highsticks, marker,
@@ -299,6 +343,7 @@ class Sticks {
   double point2;
   double point3;
   double point4;
+
   Sticks(this.point1, this.point2, this.point3, this.point4);
 }
 
@@ -331,6 +376,7 @@ class _RectPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    
     double width = size.width;
     final double height = size.height * (1 - 0.2); // volumeprop - 0.2
 
@@ -355,7 +401,7 @@ class _RectPainter extends CustomPainter {
     }
 
     int i = 0;
-    final double rectWidth = width / 21;
+    final double rectWidth = width / rects.length;
     gridLineY = 0;
 
     for (Rect rect in rects) {
